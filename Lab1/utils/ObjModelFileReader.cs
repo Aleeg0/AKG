@@ -3,7 +3,7 @@ using System.IO;
 using System.Numerics;
 using Lab1.model;
 
-namespace Lab1.parser;
+namespace Lab1.utils;
 
 public class ObjModelFileReader
 {

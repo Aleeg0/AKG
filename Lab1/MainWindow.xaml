@@ -11,6 +11,7 @@
         WindowStyle="SingleBorderWindow"
         Width="800"
         Height="600"
+        SizeChanged="Window_SizeChanged"
         >
     <Grid>
         <Grid.RowDefinitions>
