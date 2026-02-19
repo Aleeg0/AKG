@@ -31,30 +31,17 @@
 
                 <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"
                           Background="#DDDDDD" Margin="10,0"/>
-
-                <!--<Button x:Name="BtnForeground" Content="🎨 Foreground" Margin="5" Padding="15,8"
-                        Background="Transparent" BorderBrush="#DDDDDD" BorderThickness="1"
-                        Foreground="#333333" Click="ForegroundColor_OnClick"/>
-
-                <Button x:Name="BtnBackground" Content="🎨 Background" Margin="5" Padding="15,8"
-                        Background="Transparent" BorderBrush="#DDDDDD" BorderThickness="1"
-                        Foreground="#333333" Click="BackgroundColor_OnClick"/>
-
-                <Button x:Name="BtnInfo" Content="ℹ Info" Margin="5" Padding="15,8"
-                        Background="Transparent" BorderBrush="#DDDDDD" BorderThickness="1"
-                        Foreground="#333333" Click="ToggleModelInfoPopup"/>-->
             </StackPanel>
         </Border>
 
         <Border Grid.Row="1" Background="White">
             <StackPanel Focusable="True" Grid.Row="1" Name="ImagePanel" Background="White" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
             >
-                <!--MouseWheel="ImagePanel_OnMouseWheel"
-                        MouseLeftButtonDown="ImagePanel_OnMouseLeftButtonDown"
-                        MouseLeftButtonUp="ImagePanel_OnMouseLeftButtonUp"
-                        KeyDown="ImagePanel_KeyDown"
-                        MouseMove="ImagePanel_OnMouseMove"-->
-                <Image x:Name="ImgDisplay" Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                <Image x:Name="ImgDisplay"
+                       Stretch="Fill"
+                       RenderOptions.BitmapScalingMode="NearestNeighbor"
+                       RenderOptions.EdgeMode="Aliased"
+                       SnapsToDevicePixels="True" />
             </StackPanel>
         </Border>
     </Grid>

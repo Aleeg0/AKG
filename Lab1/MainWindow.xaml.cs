@@ -48,10 +48,23 @@ public partial class MainWindow : Window
 
     private void InitWriteableBitmap()
     {
-        int width = (int)(ImagePanel.ActualWidth > 0 ? ImagePanel.ActualWidth : 800);
-        int height = (int)(ImagePanel.ActualHeight > 0 ? ImagePanel.ActualHeight : 600);
+        PresentationSource source = PresentationSource.FromVisual(this);
+        double dpiX = 96.0;
+        double dpiY = 96.0;
 
-        _wb = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
+        if (source != null && source.CompositionTarget != null)
+        {
+            Matrix m = source.CompositionTarget.TransformToDevice;
+            dpiX = m.M11 * 96.0;
+            dpiY = m.M22 * 96.0;
+        }
+
+        int width = (int)(ImagePanel.ActualWidth * (dpiX / 96.0));
+        int height = (int)(ImagePanel.ActualHeight * (dpiY / 96.0));
+
+        if (width <= 0 || height <= 0) return;
+
+        _wb = new WriteableBitmap(width, height, dpiX, dpiY, PixelFormats.Bgra32, null);
         ImgDisplay.Source = _wb;
     }
 
