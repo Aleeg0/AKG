@@ -10,7 +10,7 @@ public class ObjModel
     public List<Vector3> VtxsNormal { get; } = [];
     public List<Polygon> Polygons { get; } = [];
 
-    public float Scale { get; set; } = 1;
+    public Vector3 Scale { get; set; } = Vector3.One;
 
     public Vector3 Translation { get; set; } = Vector3.Zero;
 

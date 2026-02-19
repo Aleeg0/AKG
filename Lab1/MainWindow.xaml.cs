@@ -71,9 +71,9 @@ public partial class MainWindow : Window
             case Key.Down:  _model.Translation -= new Vector3(0, transSpeed, 0); break;
 
             case Key.OemPlus:
-            case Key.Add: _model.Scale += scaleSpeed; break;
+            case Key.Add: _model.Scale += new Vector3(scaleSpeed); break;
             case Key.OemMinus:
-            case Key.Subtract: _model.Scale = Math.Max(0.1f, _model.Scale - scaleSpeed); break;
+            case Key.Subtract: _model.Scale = Vector3.Max(new Vector3(0.01f), _model.Scale - new Vector3(scaleSpeed)); break;
 
             case Key.W: _model.Rotation += new Vector3(rotSpeed, 0, 0); break;
             case Key.S: _model.Rotation -= new Vector3(rotSpeed, 0, 0); break;
@@ -135,9 +135,9 @@ public partial class MainWindow : Window
         float zoomSpeed = 0.1f;
 
         if (e.Delta > 0)
-            _model.Scale += zoomSpeed;
+            _model.Scale += new Vector3(zoomSpeed);
         else
-            _model.Scale = Math.Max(0.05f, _model.Scale - zoomSpeed); // Не даем уйти в минус
+            _model.Scale = Vector3.Max(new Vector3(0.05f), _model.Scale - new Vector3(zoomSpeed));
 
         DrawScene();
     }
@@ -166,7 +166,7 @@ public partial class MainWindow : Window
                 loadedModel.Normalize();
                 _model = loadedModel;
 
-                _model.Scale = 1f;
+                _model.Scale = Vector3.One;
                 _model.Rotation = Vector3.Zero;
                 _model.Translation = Vector3.Zero;
 

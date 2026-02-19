@@ -10,7 +10,7 @@ public class RenderProcessor
         var modelMatrix = CreateModelMatrix(model.Translation, model.Scale, model.Rotation);
         var viewMatrix = CreateViewMatrix(cam.Eye, cam.Target, cam.Up);
         var projMatrix = CreateProjectionMatrix(cam.Fov, width / height, cam.ZNear, cam.ZFar);
-        var viewportMatrix = CreateViewportMatrix(width,  height, 0, 0);
+        var viewportMatrix = CreateViewportMatrix(width, height, 0, 0);
 
         var finalMatrix = modelMatrix * viewMatrix * projMatrix * viewportMatrix;
 
@@ -22,18 +22,78 @@ public class RenderProcessor
             {
                 v /= v.W;
             }
+
             model.VtxsTransform[i] = v;
         });
     }
 
-    private static Matrix4x4 CreateModelMatrix(Vector3 translation, float scale, Vector3 rotation)
+    private static Matrix4x4 CreateModelMatrix(Vector3 translation, Vector3 scale, Vector3 rotation)
     {
-        var translationMatrix = Matrix4x4.CreateTranslation(translation);
-        var scaleMatrix = Matrix4x4.CreateScale(scale);
-        var rotationMatrix = Matrix4x4.CreateRotationX(rotation.X) * Matrix4x4.CreateRotationY(rotation.Y) *
-                             Matrix4x4.CreateRotationZ(rotation.Z);
+        var translationMatrix = CreateTranslation(translation);
+        var scaleMatrix = CreateScale(scale);
+        var rotationMatrix = CreateRotationX(rotation.X) * CreateRotationY(rotation.Y) *
+                             CreateRotationZ(rotation.Z);
 
-        return translationMatrix * rotationMatrix * scaleMatrix;
+        return scaleMatrix * rotationMatrix * translationMatrix;
+    }
+
+    private static Matrix4x4 CreateTranslation(Vector3 translation)
+    {
+        return Matrix4x4.Transpose(new Matrix4x4(
+            1, 0, 0, translation.X,
+            0, 1, 0, translation.Y,
+            0, 0, 1, translation.Z,
+            0, 0, 0, 1
+        ));
+    }
+
+    private static Matrix4x4 CreateScale(Vector3 scale)
+    {
+        return Matrix4x4.Transpose(new Matrix4x4(
+            scale.X, 0, 0, 0,
+            0, scale.Y, 0, 0,
+            0, 0, scale.Z, 0,
+            0, 0, 0, 1
+        ));
+    }
+
+    private static Matrix4x4 CreateRotationX(float angle)
+    {
+        float c = (float)Math.Cos(angle);
+        float s = (float)Math.Sin(angle);
+
+        return Matrix4x4.Transpose(new Matrix4x4(
+            1,  0,  0,  0,
+            0,  c,  -s,  0,
+            0, s,  c,  0,
+            0,  0,  0,  1
+        ));
+    }
+
+    private static Matrix4x4 CreateRotationY(float angle)
+    {
+        float c = (float)Math.Cos(angle);
+        float s = (float)Math.Sin(angle);
+
+        return Matrix4x4.Transpose(new Matrix4x4(
+            c,  0,  s,  0,
+            0,  1,  0,  0,
+            -s, 0,  c,  0,
+            0,  0,  0,  1
+        ));
+    }
+
+    private static Matrix4x4 CreateRotationZ(float angle)
+    {
+        float c = (float)Math.Cos(angle);
+        float s = (float)Math.Sin(angle);
+
+        return Matrix4x4.Transpose(new Matrix4x4(
+            c,  -s,  0,  0,
+            s,  c,  0,  0,
+            0, 0,  1,  0,
+            0,  0,  0,  1
+        ));
     }
 
     private static Matrix4x4 CreateViewMatrix(Vector3 eye, Vector3 target, Vector3 up)
