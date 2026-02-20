@@ -162,7 +162,7 @@ public partial class MainWindow : Window
 
         ObjModelDrawer.FillBitmap(_wb, _bgColor);
 
-        _processor.TransformModel(_model, _camera, (float)_wb.Width, (float)_wb.Height);
+        _processor.TransformModel(_model, _camera, (float)_wb.PixelWidth, (float)_wb.PixelHeight);
 
         ObjModelDrawer.DrawModel(_wb, _model, _modelColor);
     }
