@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.IO;
 using System.Numerics;
-using Lab1.model;
+using Lab2.model;
 
-namespace Lab1.utils;
+namespace Lab2.utils;
 
 public class ObjModelFileReader
 {
