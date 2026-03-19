@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -12,37 +13,69 @@ public static unsafe class ObjModelDrawer
     private static int _height = 0;
     private static int* _buffer = null;
     private static int _intColor = 0;
+    private static ZBuffer _zBuffer = new ();
 
-    public static void DrawModel(WriteableBitmap wb, ObjModel model, Color color)
+    public static void DrawModel(WriteableBitmap wb, ObjModel model, Color color, Camera camera)
     {
-        _intColor = color.ToInt();
         Vector4[] vtxs = model.VtxsTransform;
-        int vtxsCount = vtxs.Length;
-        List<Polygon> polygons = model.Polygons;
+
 
         _width = wb.PixelWidth;
         _height = wb.PixelHeight;
+
+        if (_zBuffer.Value.Length < _width * _height)
+        {
+            _zBuffer.Resize(_width, _height);
+        }
+        _zBuffer.Clear();
 
         wb.Lock();
 
         _buffer = (int*)wb.BackBuffer;
 
-        foreach (var poly in polygons)
+        foreach (var poly in model.Polygons)
         {
-            int count = poly.PolygonRecords.Count;
-            if (count < 3)
-                continue;
+            var records = CollectionsMarshal.AsSpan(poly.PolygonRecords);
+            if (records.Length < 3) continue;
 
-            for (int i = 1; i < count - 1; i++)
+            int index0 = records[0].GeometrixIndex;
+            if (index0 < 0 || index0 >= vtxs.Length) continue;
+
+            Vector4 v0 = vtxs[index0];
+
+            for (int i = 1; i < records.Length - 1; i++)
             {
-                int index1 = poly.PolygonRecords[0].GeometrixIndex;
-                int index2 = poly.PolygonRecords[i].GeometrixIndex;
-                int index3 = poly.PolygonRecords[i + 1].GeometrixIndex;
+                int index1 = records[i].GeometrixIndex;
+                int index2 = records[i + 1].GeometrixIndex;
 
-                if (index1 < 0 || index1 >= vtxsCount || index2 < 0 || index2 >= vtxsCount || index3 < 0 || index3  >= vtxsCount)
+                if (index1 < 0 || index1 >= vtxs.Length || index2 < 0 || index2 >= vtxs.Length)
                     continue;
 
-                RasterizeTriangle(vtxs[index1], vtxs[index2], vtxs[index3]);
+                Vector4 v1 = vtxs[index1];
+                Vector4 v2 = vtxs[index2];
+
+                float crossZ = (v1.X - v0.X) * (v2.Y - v0.Y) - (v1.Y - v0.Y) * (v2.X - v0.X);
+
+                if (crossZ >= 0)
+                    continue;
+
+                var worldV0 = model.VtxsGeometric[index0];
+                var worldV1 = model.VtxsGeometric[index1];
+                var worldV2 = model.VtxsGeometric[index2];
+
+                Vector3 edge1 = new Vector3(worldV1.X - worldV0.X, worldV1.Y - worldV0.Y, worldV1.Z - worldV0.Z);
+                Vector3 edge2 = new Vector3(worldV2.X - worldV0.X, worldV2.Y - worldV0.Y, worldV2.Z - worldV0.Z);
+
+                Vector3 test = Vector3.Cross(edge1, edge2);
+                Vector3 normal = Vector3.Normalize(test);
+
+                float rowIntensity = Vector3.Dot(normal, camera.Light);
+                float intensity = 0.3f + 0.7f * Math.Max(0, rowIntensity);
+
+                int light = (int)(intensity * 255);
+                _intColor = (255 << 24) | (light << 16) | (light << 8) | light;
+
+                RasterizeTriangle(v0, v1, v2);
             }
         }
 
@@ -83,18 +116,24 @@ public static unsafe class ObjModelDrawer
 
     private static void FillTriangleWithFlatBottom(Vector4 v0, Vector4 v1, Vector4 v2)
     {
-        float dY01 = v1.Y - v0.Y;
-        float dY02 = v2.Y - v0.Y;
+        float invDy01 = 1.0f / (v1.Y - v0.Y);
+        float invDy02 = 1.0f / (v2.Y - v0.Y);
 
         int startY = (int)Math.Max(0, Math.Ceiling(v0.Y));
         int finishY = (int)Math.Min(_height - 1, Math.Floor(v2.Y));
 
-        float stepXLeft = (v1.X - v0.X) / dY01;
-        float stepXRight = (v2.X - v0.X) / dY02;
-        float stepZLeft = (v1.Z - v0.Z) / dY01;
-        float stepZRight = (v2.Z - v0.Z) / dY02;
+        float stepXLeft = (v1.X - v0.X) * invDy01;
+        float stepXRight = (v2.X - v0.X) * invDy02;
+        float stepZLeft = (v1.Z - v0.Z) * invDy01;
+        float stepZRight = (v2.Z - v0.Z) * invDy02;
 
         float xLeft = v0.X, xRight = v0.X, zLeft = v0.Z, zRight = v0.Z;
+
+        float preStep = startY - v0.Y;
+        xLeft += stepXLeft * preStep;
+        xRight += stepXRight * preStep;
+        zLeft += stepZLeft * preStep;
+        zRight += stepZRight * preStep;
 
         for (int y = startY; y <= finishY; y++)
         {
@@ -121,16 +160,16 @@ public static unsafe class ObjModelDrawer
 
     private static void FillTriangleWithFlatTop(Vector4 v0, Vector4 v1, Vector4 v2)
     {
-        float dY01 = v2.Y - v0.Y;
-        float dY02 = v2.Y - v1.Y;
+        float invDy01 = 1.0f / (v2.Y - v0.Y);
+        float invDy02 = 1.0f / (v2.Y - v1.Y);
 
         int startY = (int)Math.Max(0, Math.Ceiling(v0.Y));
         int finishY = (int)Math.Min(_height - 1, Math.Floor(v2.Y));
 
-        float stepXLeft = (v2.X - v0.X) / dY01;
-        float stepXRight = (v2.X - v1.X) / dY02;
-        float stepZLeft = (v2.Z - v0.Z) / dY01;
-        float stepZRight = (v2.Z - v1.Z) / dY02;
+        float stepXLeft = (v2.X - v0.X) * invDy01;
+        float stepXRight = (v2.X - v1.X) * invDy02;
+        float stepZLeft = (v2.Z - v0.Z) * invDy01;
+        float stepZRight = (v2.Z - v1.Z) * invDy02;
 
         float xLeft = v0.X, xRight = v1.X, zLeft = v0.Z, zRight = v1.Z;
 
@@ -172,11 +211,30 @@ public static unsafe class ObjModelDrawer
         int clampedXLeft = (int)Math.Max(vLeft.X, 0.0f);
         int clampedXRight = (int)Math.Min(vRight.X, _width - 1.0f);
 
-        int* row = _buffer + ((int)vLeft.Y * _width);
+        float z = vLeft.Z;
+        float stepZ = 0;
+
+        if (vRight.X != vLeft.X)
+        {
+            stepZ = (vRight.Z - vLeft.Z) / (vRight.X - vLeft.X);
+            z += stepZ * (clampedXLeft - vLeft.X);
+        }
+
+
+        int bufferIndex = (int)vLeft.Y * _width + clampedXLeft;
+        int* row = _buffer + (int)vLeft.Y * _width;
+
 
         for (int x = clampedXLeft; x <= clampedXRight; x++)
         {
-            row[x] = _intColor;
+            if (z < _zBuffer.Value[bufferIndex])
+            {
+                _zBuffer.Value[bufferIndex] = z;
+                row[x] = _intColor;
+            }
+
+            z += stepZ;
+            bufferIndex++;
         }
     }
 
@@ -186,16 +244,13 @@ public static unsafe class ObjModelDrawer
         wb.Lock();
         try
         {
-            unsafe
-            {
-                int* pBackBuffer = (int*)wb.BackBuffer;
+            int* pBackBuffer = (int*)wb.BackBuffer;
 
-                for (int i = 0; i < wb.PixelHeight; i++)
+            for (int i = 0; i < wb.PixelHeight; i++)
+            {
+                for (int j = 0; j < wb.PixelWidth; j++)
                 {
-                    for (int j = 0; j < wb.PixelWidth; j++)
-                    {
-                        *pBackBuffer++ = colorInt;
-                    }
+                    *pBackBuffer++ = colorInt;
                 }
             }
 

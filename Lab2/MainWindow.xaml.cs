@@ -164,7 +164,7 @@ public partial class MainWindow : Window
 
         _processor.TransformModel(_model, _camera, (float)_wb.PixelWidth, (float)_wb.PixelHeight);
 
-        ObjModelDrawer.DrawModel(_wb, _model, _modelColor);
+        ObjModelDrawer.DrawModel(_wb, _model, _modelColor, _camera);
     }
 
     private void LoadFile_OnClick(object sender, RoutedEventArgs e)
