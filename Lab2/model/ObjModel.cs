@@ -9,6 +9,7 @@ public class ObjModel
     public List<Vector3> VtxsTexture { get; } = [];
     public List<Vector3> VtxsNormal { get; } = [];
     public List<Polygon> Polygons { get; } = [];
+    public Vector4[] VtxsWorldTransform { get; set; } = [];
 
     public Vector3 Scale { get; set; } = Vector3.One;
 

@@ -25,6 +25,14 @@ public class RenderProcessor
 
             model.VtxsTransform[i] = v;
         });
+
+
+        var worldTransform = new Vector4[model.VtxsGeometric.Count];
+        Parallel.For(0, count, i =>
+        {
+            worldTransform[i] = Vector4.Transform(model.VtxsGeometric[i], modelMatrix);
+        });
+        model.VtxsWorldTransform = worldTransform;
     }
 
     private static Matrix4x4 CreateModelMatrix(Vector3 translation, Vector3 scale, Vector3 rotation)

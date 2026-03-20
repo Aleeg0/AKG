@@ -59,9 +59,9 @@ public static unsafe class ObjModelDrawer
                 if (crossZ >= 0)
                     continue;
 
-                var worldV0 = model.VtxsGeometric[index0];
-                var worldV1 = model.VtxsGeometric[index1];
-                var worldV2 = model.VtxsGeometric[index2];
+                var worldV0 = model.VtxsWorldTransform[index0];
+                var worldV1 = model.VtxsWorldTransform[index1];
+                var worldV2 = model.VtxsWorldTransform[index2];
 
                 Vector3 edge1 = new Vector3(worldV1.X - worldV0.X, worldV1.Y - worldV0.Y, worldV1.Z - worldV0.Z);
                 Vector3 edge2 = new Vector3(worldV2.X - worldV0.X, worldV2.Y - worldV0.Y, worldV2.Z - worldV0.Z);
