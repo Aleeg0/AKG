@@ -66,6 +66,7 @@ public partial class MainWindow : Window
 
         _wb = new WriteableBitmap(width, height, dpiX, dpiY, PixelFormats.Bgra32, null);
         ImgDisplay.Source = _wb;
+        _camera.AspectRatio = (float)_wb.PixelWidth / _wb.PixelHeight;
     }
 
     private void OnKeyDown(object sender, KeyEventArgs e)
@@ -162,7 +163,7 @@ public partial class MainWindow : Window
 
         ObjModelDrawer.FillBitmap(_wb, _bgColor);
 
-        _processor.TransformModel(_model, _camera, (float)_wb.PixelWidth, (float)_wb.PixelHeight);
+        _processor.TransformModel(_model, _camera, _wb.PixelWidth, _wb.PixelHeight);
 
         ObjModelDrawer.DrawModel(_wb, _model, _modelColor, _camera);
     }
@@ -179,9 +180,7 @@ public partial class MainWindow : Window
                 loadedModel.Normalize();
                 _model = loadedModel;
 
-                _model.Scale = Vector3.One;
-                _model.Rotation = Vector3.Zero;
-                _model.Translation = Vector3.Zero;
+                _model.SetTransform(Vector3.Zero, Vector3.Zero, Vector3.One);
 
                 DrawScene();
             }
@@ -204,6 +203,13 @@ public partial class MainWindow : Window
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         InitWriteableBitmap();
+        DrawScene();
+    }
+
+    private void ResetModelPosition(object sender, RoutedEventArgs e)
+    {
+        if (_model == null || _wb == null) return;
+        _model.Reset();
         DrawScene();
     }
 }

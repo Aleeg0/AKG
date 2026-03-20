@@ -11,6 +11,7 @@ public class Camera
     public float Fov { get; set; } = MathF.PI / 4;
     public float ZNear { get; set; } = 1f;
     public float ZFar { get; set; } = 100f;
+    public float AspectRatio { get; set; } = 16.0f / 9.0f;
 
     public Vector3 Light { get; }  = Vector3.Normalize(Vector3.One);
 }

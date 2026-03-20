@@ -25,6 +25,10 @@
                         Background="Transparent" BorderBrush="#DDDDDD" BorderThickness="1"
                         Foreground="#333333" Click="LoadFile_OnClick"/>
 
+                <Button x:Name="BtnReset" Content="🔄 Reset" Margin="5" Padding="15,8"
+                        Background="Transparent" BorderBrush="#DDDDDD" BorderThickness="1"
+                        Foreground="#333333" Click="ResetModelPosition"/>
+
                 <Button x:Name="BtnClear" Content="🗑 Clear" Margin="5" Padding="15,8"
                         Background="Transparent" BorderBrush="#DDDDDD" BorderThickness="1"
                         Foreground="#333333" Click="FileClear_OnClick"/>
