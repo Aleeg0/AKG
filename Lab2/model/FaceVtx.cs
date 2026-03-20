@@ -1,6 +1,6 @@
 namespace Lab2.model;
 
-public struct PolygonVertexes()
+public struct FaceVtx()
 {
     public int GeometrixIndex { get; set; } = 0;
     public int TextureIndex  { get; set; } = 0;

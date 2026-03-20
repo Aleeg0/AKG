@@ -14,7 +14,7 @@ public class ObjModelFileReader
         var geometricVtxs = new List<Vector4>();
         var textureVtxs = new List<Vector3>();
         var normalVtxs = new List<Vector3>();
-        var polygons = new List<Polygon>();
+        var polygons = new List<Face>();
 
         var lines = File.ReadAllLines(filePath);
 
@@ -91,18 +91,18 @@ public class ObjModelFileReader
         return new Vector3(i, j, k);
     }
 
-    private static Polygon ReadPolygon(string[] tokens, int geometricVtxsCount, int textureVtxsCount, int normalVtxsCount)
+    private static Face ReadPolygon(string[] tokens, int geometricVtxsCount, int textureVtxsCount, int normalVtxsCount)
     {
         if (tokens.Length < 3) throw new ArgumentNullException(nameof(tokens));
 
-        var polygon = new Polygon();
+        var polygon = new Face();
 
         for (int i = 0; i < tokens.Length; i++)
         {
             var vertex = tokens[i];
             var vartexToken = vertex.Split('/');
 
-            var vertexIndices = new PolygonVertexes();
+            var vertexIndices = new FaceVtx();
 
             if (vartexToken.Length > 0)
             {
@@ -119,7 +119,7 @@ public class ObjModelFileReader
                 vertexIndices.NormalIndex = ParseIndex(vartexToken[2], normalVtxsCount);
             }
 
-            polygon.PolygonRecords.Add(vertexIndices);
+            polygon.FaceVtxs.Add(vertexIndices);
         }
 
         return polygon;

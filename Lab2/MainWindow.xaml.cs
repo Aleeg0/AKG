@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Lab2.model;
+using Lab2.render;
 using Lab2.utils;
 using Microsoft.Win32;
 
@@ -18,6 +19,7 @@ public partial class MainWindow : Window
     private Camera _camera;
     private RenderProcessor _processor;
     private WriteableBitmap? _wb;
+    private readonly SceneSettings _sceneSettings = new ();
 
     private Point _lastMousePos;
     private bool _isMouseDown;
@@ -165,7 +167,7 @@ public partial class MainWindow : Window
 
         _processor.TransformModel(_model, _camera, _wb.PixelWidth, _wb.PixelHeight);
 
-        ObjModelDrawer.DrawModel(_wb, _model, _modelColor, _camera);
+        ObjModelDrawer.DrawModel(_wb, _model, _camera, _sceneSettings);
     }
 
     private void LoadFile_OnClick(object sender, RoutedEventArgs e)

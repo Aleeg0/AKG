@@ -15,9 +15,10 @@ public class ObjModel
     public Vector4[] GeometricVtxs { get; init; }
     public Vector3[] TextureVtxs { get; init; }
     public Vector3[] NormalVtxs { get; init; }
-    public Polygon[] Polygons { get; init; }
+    public Face[] Faces { get; init; }
+    public FaceTrg[] FaceTrgs { get; init; }
     public Vector4[] TransformVtxs { get; set; }
-    public Vector4[] WorldVtxs { get; }
+    public Vector3[] WorldVtxs { get; }
     public Matrix4x4 ModelMatrix { get; private set; } = Matrix4x4.Identity;
 
     public Vector3 Scale
@@ -65,16 +66,17 @@ public class ObjModel
         Vector4[] geometricVtxs,
         Vector3[] textureVtxs,
         Vector3[] normalVtxs,
-        Polygon[] polygons
+        Face[] faces
     )
     {
         GeometricVtxs = geometricVtxs;
         TextureVtxs = textureVtxs;
         NormalVtxs = normalVtxs;
-        Polygons = polygons;
+        Faces = faces;
         
         TransformVtxs = new Vector4[geometricVtxs.Length];
-        WorldVtxs = new Vector4[geometricVtxs.Length];
+        WorldVtxs = new Vector3[geometricVtxs.Length];
+        FaceTrgs = Triangulate();
     }
 
     public void SetTransform(Vector3 translation, Vector3 rotation, Vector3 scale)
@@ -105,8 +107,30 @@ public class ObjModel
     {
         Parallel.For(0, GeometricVtxs.Length, i =>
         {
-            WorldVtxs[i] = Vector4.Transform(GeometricVtxs[i], ModelMatrix);
+            WorldVtxs[i] = Vector4.Transform(GeometricVtxs[i], ModelMatrix).AsVector3();
         });
+    }
+
+    private FaceTrg[] Triangulate()
+    {
+        int totalTriangles = Faces.Sum(face => face.FaceVtxs.Count - 2);
+
+        FaceTrg[] faceTrgs = new FaceTrg[totalTriangles];
+
+        int faceTrgIndex = 0;
+        foreach (var face in Faces)
+        {
+            var faceVtxs = face.FaceVtxs;
+            if (faceVtxs.Count < 3) continue;
+
+            var fv0 = faceVtxs[0];
+            for (int j = 1; j < faceVtxs.Count - 1; j++)
+            {
+                faceTrgs[faceTrgIndex++] = new FaceTrg(fv0, faceVtxs[j], faceVtxs[j + 1]);
+            }
+        }
+
+        return faceTrgs;
     }
 
     public void Normalize()
