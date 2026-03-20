@@ -11,7 +11,10 @@ public class ObjModelFileReader
 
     public static ObjModel ReadModel(string filePath)
     {
-        ObjModel objModel = new ObjModel();
+        var geometricVtxs = new List<Vector4>();
+        var textureVtxs = new List<Vector3>();
+        var normalVtxs = new List<Vector3>();
+        var polygons = new List<Polygon>();
 
         var lines = File.ReadAllLines(filePath);
 
@@ -32,21 +35,26 @@ public class ObjModelFileReader
             switch (type)
             {
                 case "v":
-                    objModel.VtxsGeometric.Add(ReadGeometrixVertex(payloadTokens));
+                    geometricVtxs.Add(ReadGeometrixVertex(payloadTokens));
                     break;
                 case "vt":
-                    objModel.VtxsTexture.Add(ReadTextureVertex(payloadTokens));
+                    textureVtxs.Add(ReadTextureVertex(payloadTokens));
                     break;
                 case "vn":
-                    objModel.VtxsNormal.Add(ReadNormalVertex(payloadTokens));
+                    normalVtxs.Add(ReadNormalVertex(payloadTokens));
                     break;
                 case "f":
-                    objModel.Polygons.Add(ReadPolygon(payloadTokens, objModel));
+                    polygons.Add(ReadPolygon(payloadTokens, geometricVtxs.Count, textureVtxs.Count, polygons.Count));
                     break;
             }
         }
 
-        return objModel;
+        return new ObjModel(
+            geometricVtxs.ToArray(),
+            textureVtxs.ToArray(),
+            normalVtxs.ToArray(),
+            polygons.ToArray()
+        );
     }
 
     private static Vector4 ReadGeometrixVertex(string[] tokens)
@@ -83,7 +91,7 @@ public class ObjModelFileReader
         return new Vector3(i, j, k);
     }
 
-    private static Polygon ReadPolygon(string[] tokens, ObjModel model)
+    private static Polygon ReadPolygon(string[] tokens, int geometricVtxsCount, int textureVtxsCount, int normalVtxsCount)
     {
         if (tokens.Length < 3) throw new ArgumentNullException(nameof(tokens));
 
@@ -98,17 +106,17 @@ public class ObjModelFileReader
 
             if (vartexToken.Length > 0)
             {
-                vertexIndices.GeometrixIndex = ParseIndex(vartexToken[0], model.VtxsGeometric.Count);
+                vertexIndices.GeometrixIndex = ParseIndex(vartexToken[0], geometricVtxsCount);
             }
 
             if (vartexToken.Length > 1 && vartexToken[1].Length > 0)
             {
-                vertexIndices.TextureIndex = ParseIndex(vartexToken[1], model.VtxsTexture.Count);
+                vertexIndices.TextureIndex = ParseIndex(vartexToken[1], textureVtxsCount);
             }
 
             if (vartexToken.Length > 2)
             {
-                vertexIndices.NormalIndex = ParseIndex(vartexToken[2], model.VtxsNormal.Count);
+                vertexIndices.NormalIndex = ParseIndex(vartexToken[2], normalVtxsCount);
             }
 
             polygon.PolygonRecords.Add(vertexIndices);

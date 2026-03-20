@@ -17,7 +17,7 @@ public static unsafe class ObjModelDrawer
 
     public static void DrawModel(WriteableBitmap wb, ObjModel model, Color color, Camera camera)
     {
-        Vector4[] vtxs = model.VtxsTransform;
+        Vector4[] vtxs = model.TransformVtxs;
 
 
         _width = wb.PixelWidth;
@@ -54,18 +54,21 @@ public static unsafe class ObjModelDrawer
                 Vector4 v1 = vtxs[index1];
                 Vector4 v2 = vtxs[index2];
 
-                float crossZ = (v1.X - v0.X) * (v2.Y - v0.Y) - (v1.Y - v0.Y) * (v2.X - v0.X);
-
-                if (crossZ >= 0)
-                    continue;
-
-                var worldV0 = model.VtxsWorldTransform[index0];
-                var worldV1 = model.VtxsWorldTransform[index1];
-                var worldV2 = model.VtxsWorldTransform[index2];
-
-                Vector3 edge1 = new Vector3(worldV1.X - worldV0.X, worldV1.Y - worldV0.Y, worldV1.Z - worldV0.Z);
-                Vector3 edge2 = new Vector3(worldV2.X - worldV0.X, worldV2.Y - worldV0.Y, worldV2.Z - worldV0.Z);
-
+                var worldV0 = model.WorldVtxs[index0].AsVector3();
+                var worldV1 = model.WorldVtxs[index1].AsVector3();
+                var worldV2 = model.WorldVtxs[index2].AsVector3();
+                
+                var edge1 = worldV1 - worldV0;
+                var edge2 = worldV2 - worldV0;
+                
+                Vector3 faceNormal = Vector3.Cross(
+                    worldV1 - worldV0,
+                    worldV2 - worldV0
+                );
+                Vector3 viewDir = camera.Eye - worldV0;
+                
+                if (Vector3.Dot(faceNormal, viewDir) <= 0) continue;
+                
                 Vector3 test = Vector3.Cross(edge1, edge2);
                 Vector3 normal = Vector3.Normalize(test);
 
@@ -73,32 +76,32 @@ public static unsafe class ObjModelDrawer
                 float intensity = 0.3f + 0.7f * Math.Max(0, rowIntensity);
 
                 int light = (int)(intensity * 255);
-                _intColor = (255 << 24) | (light << 16) | (light << 8) | light;
+                int colorInt = (255 << 24) | (light << 16) | (light << 8) | light;
 
-                RasterizeTriangle(v0, v1, v2);
+                RasterizeTriangle(v0, v1, v2, colorInt);
             }
         }
 
         wb.Unlock();
     }
 
-    private static void RasterizeTriangle(Vector4 v0, Vector4 v1, Vector4 v2)
+    private static void RasterizeTriangle(Vector4 v0, Vector4 v1, Vector4 v2, int color)
     {
         if (v1.Y < v0.Y) (v0, v1) = (v1, v0);
         if (v2.Y < v0.Y) (v0, v2) = (v2, v0);
         if (v2.Y < v1.Y) (v1, v2) = (v2, v1);
 
-        if (v0.Y == v2.Y) return;
+        if (Math.Abs(v0.Y - v2.Y) < 1e-6) return;
 
-        if (v0.Y == v1.Y)
+        if (Math.Abs(v0.Y - v1.Y) < 1e-6)
         {
-            FillTriangleWithFlatTop(v0, v1, v2);
+            FillTriangleWithFlatTop(v0, v1, v2, color);
             return;
         }
 
-        if (v1.Y == v2.Y)
+        if (Math.Abs(v1.Y - v2.Y) < 1e-6)
         {
-            FillTriangleWithFlatBottom(v0, v1, v2);
+            FillTriangleWithFlatBottom(v0, v1, v2, color);
             return;
         }
 
@@ -110,11 +113,11 @@ public static unsafe class ObjModelDrawer
             0
         );
 
-        FillTriangleWithFlatBottom(v0, v1, v3);
-        FillTriangleWithFlatTop(v1, v3, v2);
+        FillTriangleWithFlatBottom(v0, v1, v3, color);
+        FillTriangleWithFlatTop(v1, v3, v2, color);
     }
 
-    private static void FillTriangleWithFlatBottom(Vector4 v0, Vector4 v1, Vector4 v2)
+    private static void FillTriangleWithFlatBottom(Vector4 v0, Vector4 v1, Vector4 v2, int color)
     {
         float invDy01 = 1.0f / (v1.Y - v0.Y);
         float invDy02 = 1.0f / (v2.Y - v0.Y);
@@ -148,7 +151,8 @@ public static unsafe class ObjModelDrawer
 
             DrawHorizontalLine(
                 new Vector3(currXLeft, y, currZLeft),
-                new Vector3(currXRight, y, currZRight)
+                new Vector3(currXRight, y, currZRight),
+                color
             );
 
             xLeft += stepXLeft;
@@ -158,7 +162,7 @@ public static unsafe class ObjModelDrawer
         }
     }
 
-    private static void FillTriangleWithFlatTop(Vector4 v0, Vector4 v1, Vector4 v2)
+    private static void FillTriangleWithFlatTop(Vector4 v0, Vector4 v1, Vector4 v2, int color)
     {
         float invDy01 = 1.0f / (v2.Y - v0.Y);
         float invDy02 = 1.0f / (v2.Y - v1.Y);
@@ -193,7 +197,8 @@ public static unsafe class ObjModelDrawer
 
             DrawHorizontalLine(
                 new Vector3(currXLeft, y, currZLeft),
-                new Vector3(currXRight, y, currZRight)
+                new Vector3(currXRight, y, currZRight),
+                color
             );
 
             xLeft += stepXLeft;
@@ -203,7 +208,7 @@ public static unsafe class ObjModelDrawer
         }
     }
 
-    private static void DrawHorizontalLine(Vector3 vLeft, Vector3 vRight)
+    private static void DrawHorizontalLine(Vector3 vLeft, Vector3 vRight, int color)
     {
         if (vLeft.X >= _width || vRight.X < 0)
             return;
@@ -214,15 +219,15 @@ public static unsafe class ObjModelDrawer
         float z = vLeft.Z;
         float stepZ = 0;
 
-        if (vRight.X != vLeft.X)
+        if (Math.Abs(vRight.X - vLeft.X) < 1e-6)
         {
             stepZ = (vRight.Z - vLeft.Z) / (vRight.X - vLeft.X);
             z += stepZ * (clampedXLeft - vLeft.X);
         }
 
-
-        int bufferIndex = (int)vLeft.Y * _width + clampedXLeft;
-        int* row = _buffer + (int)vLeft.Y * _width;
+        int intY = (int)vLeft.Y;
+        int bufferIndex = intY * _width + clampedXLeft;
+        int* row = _buffer + intY * _width;
 
 
         for (int x = clampedXLeft; x <= clampedXRight; x++)
@@ -230,7 +235,7 @@ public static unsafe class ObjModelDrawer
             if (z < _zBuffer.Value[bufferIndex])
             {
                 _zBuffer.Value[bufferIndex] = z;
-                row[x] = _intColor;
+                row[x] = color;
             }
 
             z += stepZ;

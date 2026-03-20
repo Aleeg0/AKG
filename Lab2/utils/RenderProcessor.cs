@@ -13,16 +13,16 @@ public class RenderProcessor
 
         var finalMatrix = model.ModelMatrix * viewMatrix * projMatrix * viewportMatrix;
 
-        int count = model.VtxsGeometric.Count;
+        int count = model.GeometricVtxs.Length;
         Parallel.For(0, count, i =>
         {
-            var v = Vector4.Transform(model.VtxsGeometric[i], finalMatrix);
+            var v = Vector4.Transform(model.GeometricVtxs[i], finalMatrix);
             if (v.W > cam.ZNear)
             {
                 v /= v.W;
             }
 
-            model.VtxsTransform[i] = v;
+            model.TransformVtxs[i] = v;
         });
     }
 

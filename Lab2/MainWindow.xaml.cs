@@ -176,7 +176,6 @@ public partial class MainWindow : Window
             try
             {
                 var loadedModel = ObjModelFileReader.ReadModel(dlg.FileName);
-                loadedModel.Initialize();
                 loadedModel.Normalize();
                 _model = loadedModel;
 

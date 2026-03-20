@@ -12,12 +12,12 @@ public class ObjModel
     private Matrix4x4 _translationMatrix = Matrix4x4.Identity;
     private Matrix4x4 _rotationMatrix = Matrix4x4.Identity;
 
-    public List<Vector4> VtxsGeometric { get; } = [];
-    public Vector4[] VtxsTransform { get; set; } = [];
-    public List<Vector3> VtxsTexture { get; } = [];
-    public List<Vector3> VtxsNormal { get; } = [];
-    public List<Polygon> Polygons { get; } = [];
-    public Vector4[] VtxsWorldTransform { get; private set; } = [];
+    public Vector4[] GeometricVtxs { get; init; }
+    public Vector3[] TextureVtxs { get; init; }
+    public Vector3[] NormalVtxs { get; init; }
+    public Polygon[] Polygons { get; init; }
+    public Vector4[] TransformVtxs { get; set; }
+    public Vector4[] WorldVtxs { get; }
     public Matrix4x4 ModelMatrix { get; private set; } = Matrix4x4.Identity;
 
     public Vector3 Scale
@@ -61,10 +61,20 @@ public class ObjModel
     public Vector3 Min { get; private set; }
     public Vector3 Max { get; private set; }
 
-    public void Initialize()
+    public ObjModel(
+        Vector4[] geometricVtxs,
+        Vector3[] textureVtxs,
+        Vector3[] normalVtxs,
+        Polygon[] polygons
+    )
     {
-        VtxsTransform = new Vector4[VtxsGeometric.Count];
-        VtxsWorldTransform = new Vector4[VtxsGeometric.Count];
+        GeometricVtxs = geometricVtxs;
+        TextureVtxs = textureVtxs;
+        NormalVtxs = normalVtxs;
+        Polygons = polygons;
+        
+        TransformVtxs = new Vector4[geometricVtxs.Length];
+        WorldVtxs = new Vector4[geometricVtxs.Length];
     }
 
     public void SetTransform(Vector3 translation, Vector3 rotation, Vector3 scale)
@@ -93,20 +103,20 @@ public class ObjModel
 
     private void UpdateVtxsWorld()
     {
-        Parallel.For(0, VtxsGeometric.Count, i =>
+        Parallel.For(0, GeometricVtxs.Length, i =>
         {
-            VtxsWorldTransform[i] = Vector4.Transform(VtxsGeometric[i], ModelMatrix);
+            WorldVtxs[i] = Vector4.Transform(GeometricVtxs[i], ModelMatrix);
         });
     }
 
     public void Normalize()
     {
-        if (VtxsGeometric.Count == 0) return;
+        if (GeometricVtxs.Length == 0) return;
 
         float minX = float.MaxValue, minY = float.MaxValue, minZ = float.MaxValue;
         float maxX = float.MinValue, maxY = float.MinValue, maxZ = float.MinValue;
 
-        foreach (var v in VtxsGeometric)
+        foreach (var v in GeometricVtxs)
         {
             if (v.X < minX) minX = v.X;
             if (v.Y < minY) minY = v.Y;
@@ -131,15 +141,15 @@ public class ObjModel
 
         float scaleFactor = maxDim > 0 ? 2.0f / maxDim : 1.0f;
 
-        for (int i = 0; i < VtxsGeometric.Count; i++)
+        for (int i = 0; i < GeometricVtxs.Length; i++)
         {
-            var v = VtxsGeometric[i];
+            var v = GeometricVtxs[i];
 
             float x = (v.X - centerX) * scaleFactor;
             float y = (v.Y - centerY) * scaleFactor;
             float z = (v.Z - centerZ) * scaleFactor;
 
-            VtxsGeometric[i] = new Vector4(x, y, z, v.W);
+            GeometricVtxs[i] = new Vector4(x, y, z, v.W);
         }
     }
 }
