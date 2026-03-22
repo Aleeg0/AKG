@@ -64,19 +64,19 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
             {
                 Transform = vtxs[v0.GeometrixIndex],
                 World = worldV0,
-                Normal = model.WorldNormalVtxs[v0.NormalIndex],
+                Normal = model.WorldNormalVtxs[v0.NormalIndex ?? 0],
             };
             DrawerVertex dv1 = new DrawerVertex()
             {
                 Transform = vtxs[v1.GeometrixIndex],
                 World = worldV1,
-                Normal = model.WorldNormalVtxs[v1.NormalIndex],
+                Normal = model.WorldNormalVtxs[v1.NormalIndex ?? 0],
             };
             DrawerVertex dv2 = new DrawerVertex()
             {
                 Transform = vtxs[v2.GeometrixIndex],
                 World = worldV2,
-                Normal = model.WorldNormalVtxs[v2.NormalIndex],
+                Normal = model.WorldNormalVtxs[v2.NormalIndex ?? 0],
             };
 
             RasterizeTriangle(dv0,dv1,dv2);
@@ -199,7 +199,7 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
     private int GetPhongColor(Vector3 world, Vector3 normal)
     {
         Vector3 normalizeNormal = Vector3.Normalize(normal);
-        Vector3 normalizeView = Vector3.Normalize(camera.Eye);
+        Vector3 normalizeView = Vector3.Normalize(camera.Eye - world);
         Vector3 normalizeLight = sceneSettings.LightDirection;
 
         float ambientLight = sceneSettings.AmbientIntensity;
@@ -210,7 +210,7 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
 
         if (diff > float.Epsilon)
         {
-            Vector3 reflection = 2.0f * diff * normalizeNormal - normalizeLight;
+            Vector3 reflection = normalizeLight - 2.0f * Math.Max(0, Vector3.Dot(normalizeLight, normalizeNormal)) * normalizeNormal;
             float specAngle = Math.Max(0, Vector3.Dot(Vector3.Normalize(reflection), normalizeView));
             reflectionLight = sceneSettings.ReflectionIntensity * (float)Math.Pow(specAngle, sceneSettings.ReflectionAlpha);
         }

@@ -30,7 +30,7 @@ public class ObjModel
             _scale = value;
             _scaleMatrix = Matrix4x4.CreateScale(value);
             UpdateModelMatrix();
-            UpdateVtxsWorld();
+            UpdateWorldVtxs();
         }
     }
 
@@ -42,7 +42,7 @@ public class ObjModel
             _translation = value;
             _translationMatrix = Matrix4x4.CreateTranslation(value);
             UpdateModelMatrix();
-            UpdateVtxsWorld();
+            UpdateWorldVtxs();
         }
     }
 
@@ -56,7 +56,8 @@ public class ObjModel
                               Matrix4x4.CreateRotationY(value.Y) *
                               Matrix4x4.CreateRotationZ(value.Z);
             UpdateModelMatrix();
-            UpdateVtxsWorld();
+            UpdateWorldVtxs();
+            UpdateWorldNormalVtxs();
         }
     }
 
@@ -91,8 +92,9 @@ public class ObjModel
         _rotationMatrix = Matrix4x4.CreateRotationX(rotation.X) *
                           Matrix4x4.CreateRotationY(rotation.Y) *
                           Matrix4x4.CreateRotationZ(rotation.Z);
+        UpdateWorldNormalVtxs();
         UpdateModelMatrix();
-        UpdateVtxsWorld();
+        UpdateWorldVtxs();
     }
 
     public void Reset()
@@ -105,11 +107,18 @@ public class ObjModel
         ModelMatrix = _scaleMatrix * _rotationMatrix * _translationMatrix;
     }
 
-    private void UpdateVtxsWorld()
+    private void UpdateWorldVtxs()
     {
         Parallel.For(0, GeometricVtxs.Length, i =>
         {
             WorldVtxs[i] = Vector4.Transform(GeometricVtxs[i], ModelMatrix).AsVector3();
+        });
+    }
+
+    private void UpdateWorldNormalVtxs()
+    {
+        Parallel.For(0, NormalVtxs.Length, i =>
+        {
             WorldNormalVtxs[i] = Vector3.Transform(NormalVtxs[i], _rotationMatrix);
         });
     }

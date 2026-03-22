@@ -10,5 +10,5 @@ public struct SceneSettings()
     public float DiffuseIntensity = 1.0f;
     public float ReflectionIntensity = 0.9f;
     public float ReflectionAlpha = 8;
-    public Color ModelColor =  Colors.White;
+    public Color ModelColor =  Colors.Pink;
 }
