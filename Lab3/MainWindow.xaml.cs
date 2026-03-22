@@ -16,10 +16,10 @@ namespace Lab3;
 public partial class MainWindow : Window
 {
     private ObjModel? _model;
-    private Camera _camera;
-    private RenderProcessor _processor;
+    private readonly Camera _camera;
+    private readonly RenderProcessor _processor;
     private WriteableBitmap? _wb;
-    private readonly SceneSettings _sceneSettings = new ();
+    private readonly ModelDrawer _modelDrawer;
 
     private Point _lastMousePos;
     private bool _isMouseDown;
@@ -37,6 +37,7 @@ public partial class MainWindow : Window
         {
             Eye = new Vector3(0, 0, 5f),
         };
+        _modelDrawer = new ModelDrawer(_camera, new SceneSettings());
 
         KeyDown += OnKeyDown;
         MouseDown += OnMouseDown;
@@ -163,11 +164,11 @@ public partial class MainWindow : Window
     {
         if (_wb == null || _model == null) return;
 
-        ObjModelDrawer.FillBitmap(_wb, _bgColor);
+        _modelDrawer.FillBitmap(_wb, _bgColor);
 
         _processor.TransformModel(_model, _camera, _wb.PixelWidth, _wb.PixelHeight);
 
-        ObjModelDrawer.DrawModel(_wb, _model, _camera, _sceneSettings);
+        _modelDrawer.DrawModel(_wb, _model);
     }
 
     private void LoadFile_OnClick(object sender, RoutedEventArgs e)
@@ -196,7 +197,7 @@ public partial class MainWindow : Window
     {
         if (_wb != null)
         {
-            ObjModelDrawer.FillBitmap(_wb, _bgColor);
+            _modelDrawer.FillBitmap(_wb, _bgColor);
             _model = null;
         }
     }

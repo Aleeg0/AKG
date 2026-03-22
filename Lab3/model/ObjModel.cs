@@ -15,6 +15,7 @@ public class ObjModel
     public Vector4[] GeometricVtxs { get; init; }
     public Vector3[] TextureVtxs { get; init; }
     public Vector3[] NormalVtxs { get; init; }
+    public Vector3[] WorldNormalVtxs { get; set; }
     public Face[] Faces { get; init; }
     public FaceTrg[] FaceTrgs { get; init; }
     public Vector4[] TransformVtxs { get; set; }
@@ -76,6 +77,7 @@ public class ObjModel
         
         TransformVtxs = new Vector4[geometricVtxs.Length];
         WorldVtxs = new Vector3[geometricVtxs.Length];
+        WorldNormalVtxs = new Vector3[normalVtxs.Length];
         FaceTrgs = Triangulate();
     }
 
@@ -108,6 +110,7 @@ public class ObjModel
         Parallel.For(0, GeometricVtxs.Length, i =>
         {
             WorldVtxs[i] = Vector4.Transform(GeometricVtxs[i], ModelMatrix).AsVector3();
+            WorldNormalVtxs[i] = Vector3.Transform(NormalVtxs[i], _rotationMatrix);
         });
     }
 
