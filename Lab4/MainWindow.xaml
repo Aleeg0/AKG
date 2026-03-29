@@ -1,0 +1,52 @@
+﻿<Window x:Class="Lab4.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Viewer"
+        WindowStartupLocation="CenterScreen"
+        Background="#FAFAFA"
+        FontFamily="Segoe UI"
+        WindowStyle="SingleBorderWindow"
+        Width="800"
+        Height="600"
+        SizeChanged="Window_SizeChanged"
+        >
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
+                <Button x:Name="BtnLoad" Content="📁 Load" Margin="5" Padding="15,8"
+                        Background="Transparent" BorderBrush="#DDDDDD" BorderThickness="1"
+                        Foreground="#333333" Click="LoadFile_OnClick"/>
+
+                <Button x:Name="BtnReset" Content="🔄 Reset" Margin="5" Padding="15,8"
+                        Background="Transparent" BorderBrush="#DDDDDD" BorderThickness="1"
+                        Foreground="#333333" Click="ResetModelPosition"/>
+
+                <Button x:Name="BtnClear" Content="🗑 Clear" Margin="5" Padding="15,8"
+                        Background="Transparent" BorderBrush="#DDDDDD" BorderThickness="1"
+                        Foreground="#333333" Click="FileClear_OnClick"/>
+
+                <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"
+                          Background="#DDDDDD" Margin="10,0"/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Background="White">
+            <StackPanel Focusable="True" Grid.Row="1" Name="ImagePanel" Background="White" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+            >
+                <Image x:Name="ImgDisplay"
+                       Stretch="Fill"
+                       RenderOptions.BitmapScalingMode="NearestNeighbor"
+                       RenderOptions.EdgeMode="Aliased"
+                       SnapsToDevicePixels="True" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
