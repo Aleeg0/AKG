@@ -200,7 +200,7 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
     {
         Vector3 normalizeNormal = Vector3.Normalize(normal);
         Vector3 normalizeView = Vector3.Normalize(camera.Eye - world);
-        Vector3 normalizeLight = sceneSettings.LightDirection;
+        Vector3 normalizeLight = Vector3.Normalize(sceneSettings.LightPosition - world);
 
         float ambientLight = sceneSettings.AmbientIntensity;
         float diff = Math.Max(0, Vector3.Dot(normalizeNormal, normalizeLight));

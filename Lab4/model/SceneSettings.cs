@@ -5,7 +5,7 @@ namespace Lab4.model;
 
 public struct SceneSettings()
 {
-    public Vector3 LightDirection = Vector3.Normalize(new (1,1,1));
+    public Vector3 LightPosition = new (3, 3, 3);
     public float AmbientIntensity = 0.2f;
     public float DiffuseIntensity = 1.0f;
     public float ReflectionIntensity = 0.9f;
