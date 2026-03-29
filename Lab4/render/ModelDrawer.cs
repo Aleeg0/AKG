@@ -11,14 +11,15 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
     private int _width = 0;
     private int _height = 0;
     private int* _buffer = null;
-    private int _intColor = 0;
     private float[] _zBuffer = [];
+    private ObjModel _model;
 
     private struct DrawerVertex
     {
         public Vector4 Transform;
         public Vector3 World;
         public Vector3 Normal;
+        public Vector3 Texel;
 
         public static DrawerVertex Lerp(DrawerVertex v0, DrawerVertex v1, float t)
         {
@@ -27,16 +28,16 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
                 Transform = Vector4.Lerp(v0.Transform, v1.Transform, t),
                 World = Vector3.Lerp(v0.World, v1.World, t),
                 Normal = Vector3.Lerp(v0.Normal, v1.Normal, t),
+                Texel = Vector3.Lerp(v0.Texel, v1.Texel, t),
             };
         }
     }
 
     public void DrawModel(WriteableBitmap wb, ObjModel model)
     {
-        Vector4[] vtxs = model.TransformVtxs;
-
         _width = wb.PixelWidth;
         _height = wb.PixelHeight;
+        _model = model;
 
         if (_zBuffer.Length < _width * _height)
         {
@@ -59,29 +60,44 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
 
             if (Vector3.Dot(faceNormal, viewDir) <= 0) continue;
 
-            DrawerVertex dv0 = new DrawerVertex()
-            {
-                Transform = vtxs[v0.GeometrixIndex],
-                World = worldV0,
-                Normal = model.WorldNormalVtxs[v0.NormalIndex ?? 0],
-            };
-            DrawerVertex dv1 = new DrawerVertex()
-            {
-                Transform = vtxs[v1.GeometrixIndex],
-                World = worldV1,
-                Normal = model.WorldNormalVtxs[v1.NormalIndex ?? 0],
-            };
-            DrawerVertex dv2 = new DrawerVertex()
-            {
-                Transform = vtxs[v2.GeometrixIndex],
-                World = worldV2,
-                Normal = model.WorldNormalVtxs[v2.NormalIndex ?? 0],
-            };
+            DrawerVertex dv0 = CreateDrawerVertex(
+                model.TransformVtxs[v0.GeometrixIndex],
+                worldV0,
+                model.WorldNormalVtxs[v0.NormalIndex ?? 0],
+                model.TextureVtxs[v0.TextureIndex]
+            );
 
-            RasterizeTriangle(dv0,dv1,dv2);
+            DrawerVertex dv1 = CreateDrawerVertex(
+                model.TransformVtxs[v1.GeometrixIndex],
+                worldV1,
+                model.WorldNormalVtxs[v1.NormalIndex ?? 0],
+                model.TextureVtxs[v1.TextureIndex]
+            );
+
+            DrawerVertex dv2 = CreateDrawerVertex(
+                model.TransformVtxs[v2.GeometrixIndex],
+                worldV2,
+                model.WorldNormalVtxs[v2.NormalIndex ?? 0],
+                model.TextureVtxs[v2.TextureIndex]
+            );
+
+            RasterizeTriangle(dv0, dv1, dv2);
         }
 
         wb.Unlock();
+    }
+
+    private DrawerVertex CreateDrawerVertex(Vector4 transform, Vector3 world, Vector3 normal, Vector3 texel)
+    {
+        float invW = 1 / transform.W;
+        transform.W = invW;
+        return new DrawerVertex()
+        {
+            Transform = transform,
+            World = world * invW,
+            Normal = normal * invW,
+            Texel = texel * invW
+        };
     }
 
     private void RasterizeTriangle(DrawerVertex dv0, DrawerVertex dv1, DrawerVertex dv2)
@@ -106,7 +122,6 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
 
         float t = (dv1.Transform.Y - dv0.Transform.Y) / (dv2.Transform.Y - dv0.Transform.Y);
         DrawerVertex dv3 = DrawerVertex.Lerp(dv0, dv2, t);
-        // TODO убедись что Y у dv3 будет dv1.Transform.Y
 
         FillTriangleWithFlatBottom(dv0, dv1, dv3);
         FillTriangleWithFlatTop(dv1, dv3, dv2);
@@ -179,25 +194,56 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         {
             float t = totalWidth > float.Epsilon ? (x - leftX) / totalWidth : 0.0f;
 
-            float z = leftZ + t *(totalZWidth);
+            float z = leftZ + t * totalZWidth;
 
             if (z < _zBuffer[bufferIndex])
             {
                 _zBuffer[bufferIndex] = z;
 
-                Vector3 currentWorld = Vector3.Lerp(dvLeft.World, dvRight.World, t);
-                Vector3 currentNormal = Vector3.Lerp(dvLeft.Normal, dvRight.Normal, t);
+                float currentInvW = dvLeft.Transform.W + t * (dvRight.Transform.W - dvLeft.Transform.W);
 
-                row[x] = GetPhongColor(currentWorld, currentNormal);
+                Vector3 currentWorld = Vector3.Lerp(dvLeft.World, dvRight.World, t) / currentInvW;
+                Vector3 currentNormal = Vector3.Lerp(dvLeft.Normal, dvRight.Normal, t) / currentInvW;
+                Vector3 currentTexel = Vector3.Lerp(dvLeft.Texel, dvRight.Texel, t) / currentInvW;
+
+                row[x] = GetPhongColor(currentWorld, currentNormal, currentTexel);
             }
 
             bufferIndex++;
         }
     }
 
-    private int GetPhongColor(Vector3 world, Vector3 normal)
+    private int GetPhongColor(Vector3 world, Vector3 normal, Vector3 texel)
     {
-        Vector3 normalizeNormal = Vector3.Normalize(normal);
+        var baseColor = new Vector4(
+            sceneSettings.ModelColor.R,
+            sceneSettings.ModelColor.G,
+            sceneSettings.ModelColor.B,
+            sceneSettings.ModelColor.A
+        );
+
+        if (_model.DiffuseMap != null)
+        {
+            baseColor = _model.DiffuseMap.Sample(texel.X, texel.Y);
+        }
+
+        baseColor /= 255.0f;
+
+        var normalizeNormal = Vector3.Normalize(normal);
+        if (_model.NormalMap != null)
+        {
+            var texelNormalColor = _model.NormalMap.Sample(texel.X, texel.Y);
+            var localNormal = new Vector3(texelNormalColor.X, texelNormalColor.Y, texelNormalColor.Z) / 127.5f - Vector3.One;
+            normalizeNormal = Vector3.Normalize(Vector3.Transform(localNormal, _model.RotationMatrix));
+        }
+
+        float specReflectionIntensity = sceneSettings.ReflectionIntensity;
+        if (_model.SpecularMap != null)
+        {
+            Vector4 specColor = _model.SpecularMap.Sample(texel.X, texel.Y);
+            specReflectionIntensity = specColor.X / 255.0f;
+        }
+
         Vector3 normalizeView = Vector3.Normalize(camera.Eye - world);
         Vector3 normalizeLight = sceneSettings.LightDirection;
 
@@ -211,14 +257,14 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         {
             Vector3 reflection = normalizeLight - 2.0f * Math.Max(0, Vector3.Dot(normalizeLight, normalizeNormal)) * normalizeNormal;
             float specAngle = Math.Max(0, Vector3.Dot(Vector3.Normalize(reflection), normalizeView));
-            reflectionLight = sceneSettings.ReflectionIntensity * (float)Math.Pow(specAngle, sceneSettings.ReflectionAlpha);
+            reflectionLight = specReflectionIntensity * (float)Math.Pow(specAngle, sceneSettings.ReflectionAlpha);
         }
 
-        float intensity = Math.Clamp(ambientLight + diffuseLight + reflectionLight, 0.0f, 1.0f);
+        float intensity = Math.Clamp(ambientLight + diffuseLight, 0f, 1f);
 
-        int r = (int)(sceneSettings.ModelColor.R * intensity);
-        int g = (int)(sceneSettings.ModelColor.G * intensity);
-        int b = (int)(sceneSettings.ModelColor.B * intensity);
+        int r = (int)(Math.Clamp(baseColor.X * intensity + reflectionLight, 0f, 1f) * 255f);
+        int g = (int)(Math.Clamp(baseColor.Y * intensity + reflectionLight, 0f, 1f) * 255f);
+        int b = (int)(Math.Clamp(baseColor.Z * intensity + reflectionLight, 0f, 1f) * 255f);
 
         return (255 << 24) | (r << 16) | (g << 8) | b;
     }

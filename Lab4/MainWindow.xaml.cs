@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.IO;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -178,7 +179,10 @@ public partial class MainWindow : Window
             try
             {
                 var loadedModel = ObjModelFileReader.ReadModel(dlg.FileName);
+                var mtlPath = Path.ChangeExtension(dlg.FileName, ".mtl");
+                ObjModelFileReader.LoadTextures(mtlPath, loadedModel);
                 loadedModel.Normalize();
+
                 _model = loadedModel;
 
                 _model.SetTransform(Vector3.Zero, Vector3.Zero, Vector3.One);

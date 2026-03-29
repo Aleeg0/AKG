@@ -11,16 +11,26 @@ public class ObjModel
     private Matrix4x4 _scaleMatrix = Matrix4x4.Identity;
     private Matrix4x4 _translationMatrix = Matrix4x4.Identity;
     private Matrix4x4 _rotationMatrix = Matrix4x4.Identity;
+    public Matrix4x4 RotationMatrix => _rotationMatrix;
 
-    public Vector4[] GeometricVtxs { get; init; }
-    public Vector3[] TextureVtxs { get; init; }
-    public Vector3[] NormalVtxs { get; init; }
+    public Vector4[] GeometricVtxs { get; }
+    public Vector3[] WorldVtxs { get; }
+    public Vector4[] TransformVtxs { get; set; }
+
+    public Vector3[] TextureVtxs { get; }
+
+    public Vector3[] NormalVtxs { get; }
     public Vector3[] WorldNormalVtxs { get; set; }
+
+    // TODO а нужны ли нам обычные полигоны?
     public Face[] Faces { get; init; }
     public FaceTrg[] FaceTrgs { get; init; }
-    public Vector4[] TransformVtxs { get; set; }
-    public Vector3[] WorldVtxs { get; }
+
     public Matrix4x4 ModelMatrix { get; private set; } = Matrix4x4.Identity;
+
+    public Texture? DiffuseMap { get; set; } = null;
+    public Texture? NormalMap { get; set; } = null;
+    public Texture? SpecularMap { get; set; } = null;
 
     public Vector3 Scale
     {

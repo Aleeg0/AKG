@@ -19,7 +19,9 @@ public class RenderProcessor
             var v = Vector4.Transform(model.GeometricVtxs[i], finalMatrix);
             if (v.W > cam.ZNear)
             {
-                v /= v.W;
+                v.X /= v.W;
+                v.Y /= v.W;
+                v.Z /= v.W;
             }
 
             model.TransformVtxs[i] = v;

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Numerics;
+using System.Windows.Media.Imaging;
 using Lab4.model;
 
 namespace Lab4.utils;
@@ -129,5 +130,43 @@ public class ObjModelFileReader
     {
         int index = int.Parse(token, Culture);
         return index > 0 ?  index - 1 : totalCount + index;
+    }
+
+    public static void LoadTextures(string filePath, ObjModel objModel)
+    {
+        var mtlDirectory = Path.GetDirectoryName(filePath)!;
+        foreach (var line in File.ReadLines(filePath))
+        {
+            var trimmedLine = line.Trim();
+
+            if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith('#'))
+                continue;
+
+            var allTokens = trimmedLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (allTokens.Length == 0)
+                continue;
+
+            var type = allTokens[0];
+            var path = allTokens[1];
+
+            switch (type)
+            {
+                case "map_Kd":
+                    objModel.DiffuseMap = GetTexture(Path.Combine(mtlDirectory, path));
+                    break;
+                case "norm":
+                    objModel.NormalMap = GetTexture(Path.Combine(mtlDirectory, path));
+                    break;
+                case "map_specular":
+                    objModel.SpecularMap = GetTexture(Path.Combine(mtlDirectory, path));
+                    break;
+            }
+        }
+    }
+
+    private static Texture GetTexture(string filePath)
+    {
+        var bmp = new BitmapImage(new Uri(filePath));
+        return new Texture(bmp);
     }
 }
