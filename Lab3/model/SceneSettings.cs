@@ -5,10 +5,10 @@ namespace Lab3.model;
 
 public struct SceneSettings()
 {
-    public Vector3 LightPosition = new (3, 3, 3);
+    public Vector3 LightPosition = new (-4, 10, 4);
     public float AmbientIntensity = 0.2f;
     public float DiffuseIntensity = 1.0f;
-    public float ReflectionIntensity = 0.9f;
-    public float ReflectionAlpha = 8;
+    public float ReflectionIntensity = 100.0f;
+    public float ReflectionAlpha = 64;
     public Color ModelColor =  Colors.Pink;
 }

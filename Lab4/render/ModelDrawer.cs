@@ -241,7 +241,7 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         if (_model.SpecularMap != null)
         {
             Vector4 specColor = _model.SpecularMap.Sample(texel.X, texel.Y);
-            specReflectionIntensity = specColor.X / 255.0f;
+            specReflectionIntensity *= specColor.X / 255.0f;
         }
 
         Vector3 normalizeView = Vector3.Normalize(camera.Eye - world);
@@ -255,7 +255,7 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
 
         if (diff > float.Epsilon)
         {
-            Vector3 reflection = normalizeLight - 2.0f * Math.Max(0, Vector3.Dot(normalizeLight, normalizeNormal)) * normalizeNormal;
+            Vector3 reflection = 2.0f * Math.Max(0f, Vector3.Dot(normalizeLight, normalizeNormal)) * normalizeNormal - normalizeLight;
             float specAngle = Math.Max(0, Vector3.Dot(Vector3.Normalize(reflection), normalizeView));
             reflectionLight = specReflectionIntensity * (float)Math.Pow(specAngle, sceneSettings.ReflectionAlpha);
         }

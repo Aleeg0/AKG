@@ -210,16 +210,16 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
 
         if (diff > float.Epsilon)
         {
-            Vector3 reflection = normalizeLight - 2.0f * Math.Max(0, Vector3.Dot(normalizeLight, normalizeNormal)) * normalizeNormal;
+            Vector3 reflection = 2.0f * Math.Max(0f, Vector3.Dot(normalizeLight, normalizeNormal)) * normalizeNormal - normalizeLight;
             float specAngle = Math.Max(0, Vector3.Dot(Vector3.Normalize(reflection), normalizeView));
             reflectionLight = sceneSettings.ReflectionIntensity * (float)Math.Pow(specAngle, sceneSettings.ReflectionAlpha);
         }
 
-        float intensity = Math.Clamp(ambientLight + diffuseLight + reflectionLight, 0.0f, 1.0f);
+        float intensity = Math.Clamp(ambientLight + diffuseLight, 0.0f, 1.0f);
 
-        int r = (int)(sceneSettings.ModelColor.R * intensity);
-        int g = (int)(sceneSettings.ModelColor.G * intensity);
-        int b = (int)(sceneSettings.ModelColor.B * intensity);
+        int r = (int)Math.Min(sceneSettings.ModelColor.R * intensity + reflectionLight, 255.0f);
+        int g = (int)Math.Min(sceneSettings.ModelColor.G * intensity + reflectionLight, 255.0f);
+        int b = (int)Math.Min(sceneSettings.ModelColor.B * intensity + reflectionLight, 255.0f);
 
         return (255 << 24) | (r << 16) | (g << 8) | b;
     }
