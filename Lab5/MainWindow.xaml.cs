@@ -17,7 +17,7 @@ namespace Lab5;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private ObjModel? _model;
+    private Model? _model;
     private readonly Camera _camera;
     private readonly RenderProcessor _processor;
     private WriteableBitmap? _wb;

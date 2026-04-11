@@ -5,7 +5,7 @@ namespace Lab5.utils;
 
 public class RenderProcessor
 {
-    public void TransformModel(ObjModel model, Camera cam, float width, float height)
+    public void TransformModel(Model model, Camera cam, float width, float height)
     {
         var viewMatrix = CreateViewMatrix(cam.Eye, cam.Target, cam.Up);
         var projMatrix = CreateProjectionMatrix(cam.Fov, cam.AspectRatio, cam.ZNear, cam.ZFar);

@@ -12,45 +12,40 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
     private int _height = 0;
     private int* _buffer = null;
     private float[] _zBuffer = [];
-    private ObjModel _model;
+    private int[] _triangleIdBuffer = [];
+    private Model _model;
 
-    private struct DrawerVertex
-    {
-        public Vector4 Transform;
-        public Vector3 World;
-        public Vector3 Normal;
-        public Vector3 Texel;
-
-        public static DrawerVertex Lerp(DrawerVertex v0, DrawerVertex v1, float t)
-        {
-            return new DrawerVertex()
-            {
-                Transform = Vector4.Lerp(v0.Transform, v1.Transform, t),
-                World = Vector3.Lerp(v0.World, v1.World, t),
-                Normal = Vector3.Lerp(v0.Normal, v1.Normal, t),
-                Texel = Vector3.Lerp(v0.Texel, v1.Texel, t),
-            };
-        }
-    }
-
-    public void DrawModel(WriteableBitmap wb, ObjModel model)
+    public void DrawModel(WriteableBitmap wb, Model model)
     {
         _width = wb.PixelWidth;
         _height = wb.PixelHeight;
         _model = model;
 
+        int pixelCount = _width * _height;
+
         if (_zBuffer.Length < _width * _height)
         {
-            _zBuffer = new float[_width * _height];
+            _zBuffer = new float[pixelCount];
+            _triangleIdBuffer = new int[pixelCount];
         }
         Array.Fill(_zBuffer, float.MaxValue);
+        Array.Fill(_triangleIdBuffer, -1);
 
         wb.Lock();
 
         _buffer = (int*)wb.BackBuffer;
 
-        foreach (var (v0, v1, v2) in model.FaceTrgs)
+        FirstLoop(model);
+        SecondLoop(model);
+
+        wb.Unlock();
+    }
+
+    private void FirstLoop(Model model)
+    {
+        for (int triangleId = 0; triangleId < model.FaceTrgs.Length; triangleId++)
         {
+            var (v0, v1, v2) = model.FaceTrgs[triangleId];
             var worldV0 = model.WorldVtxs[v0.GeometrixIndex];
             var worldV1 = model.WorldVtxs[v1.GeometrixIndex];
             var worldV2 = model.WorldVtxs[v2.GeometrixIndex];
@@ -60,121 +55,151 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
 
             if (Vector3.Dot(faceNormal, viewDir) <= 0) continue;
 
-            DrawerVertex dv0 = CreateDrawerVertex(
+            RasterizeTriangle(
                 model.TransformVtxs[v0.GeometrixIndex],
-                worldV0,
-                model.WorldNormalVtxs[v0.NormalIndex ?? 0],
-                model.TextureVtxs[v0.TextureIndex]
-            );
-
-            DrawerVertex dv1 = CreateDrawerVertex(
                 model.TransformVtxs[v1.GeometrixIndex],
-                worldV1,
-                model.WorldNormalVtxs[v1.NormalIndex ?? 0],
-                model.TextureVtxs[v1.TextureIndex]
-            );
-
-            DrawerVertex dv2 = CreateDrawerVertex(
                 model.TransformVtxs[v2.GeometrixIndex],
-                worldV2,
-                model.WorldNormalVtxs[v2.NormalIndex ?? 0],
-                model.TextureVtxs[v2.TextureIndex]
+                triangleId
             );
-
-            RasterizeTriangle(dv0, dv1, dv2);
         }
-
-        wb.Unlock();
     }
 
-    private DrawerVertex CreateDrawerVertex(Vector4 transform, Vector3 world, Vector3 normal, Vector3 texel)
+    private void SecondLoop(Model model)
     {
-        float invW = 1 / transform.W;
-        transform.W = invW;
-        return new DrawerVertex()
+        int bufferIndex = 0;
+        for (int y = 0; y < _height; y++)
         {
-            Transform = transform,
-            World = world * invW,
-            Normal = normal * invW,
-            Texel = texel * invW
-        };
+            for (int x = 0; x < _width; x++)
+            {
+                int triId = _triangleIdBuffer[bufferIndex];
+                if (triId != -1)
+                {
+                    var (fv0, fv1, fv2) = model.FaceTrgs[triId];
+                    var (tv0, tv1, tv2) = (
+                        model.TransformVtxs[fv0.GeometrixIndex],
+                        model.TransformVtxs[fv1.GeometrixIndex],
+                        model.TransformVtxs[fv2.GeometrixIndex]
+                    );
+
+                    float area = FindArea(tv0, tv1, tv2);
+
+                    if (Math.Abs(area) <= float.Epsilon) continue;
+
+                    float w0 = EdgeFunction(tv1, tv2, x, y) / area;
+                    float w1 = EdgeFunction(tv2, tv0, x, y) / area;
+                    float w2 = 1.0f - w0 - w1;
+
+                    float invW0 = 1.0f / tv0.W;
+                    float invW1 = 1.0f / tv1.W;
+                    float invW2 = 1.0f / tv2.W;
+
+                    float currentInvW = w0 * invW0 + w1 * invW1 + w2 * invW2;
+
+                    Vector3 currentWorld = (
+                        w0 * model.WorldVtxs[fv0.GeometrixIndex] * invW0 +
+                        w1 * model.WorldVtxs[fv1.GeometrixIndex] * invW1 +
+                        w2 * model.WorldVtxs[fv2.GeometrixIndex] * invW2) / currentInvW;
+                    Vector3 currentNormal = (
+                        w0 * model.WorldNormalVtxs[fv0.NormalIndex ?? 0] * invW0 +
+                        w1 * model.WorldNormalVtxs[fv1.NormalIndex ?? 0] * invW1 +
+                        w2 * model.WorldNormalVtxs[fv2.NormalIndex ?? 0] * invW2) / currentInvW;
+                    Vector3 currentTexel = (
+                        w0 * model.TextureVtxs[fv0.TextureIndex] * invW0 +
+                        w1 * model.TextureVtxs[fv1.TextureIndex] * invW1 +
+                        w2 * model.TextureVtxs[fv2.TextureIndex] * invW2) / currentInvW;
+
+                    _buffer[bufferIndex] = GetPhongColor(currentWorld, currentNormal, currentTexel);
+                }
+                bufferIndex++;
+            }
+        }
     }
 
-    private void RasterizeTriangle(DrawerVertex dv0, DrawerVertex dv1, DrawerVertex dv2)
+    private float EdgeFunction(Vector4 a, Vector4 b, float px, float py)
     {
-        if (dv1.Transform.Y < dv0.Transform.Y) (dv0, dv1) = (dv1, dv0);
-        if (dv2.Transform.Y < dv0.Transform.Y) (dv0, dv2) = (dv2, dv0);
-        if (dv2.Transform.Y < dv1.Transform.Y) (dv1, dv2) = (dv2, dv1);
+        return (b.X - a.X) * (py - a.Y) - (b.Y - a.Y) * (px - a.X);
+    }
 
-        if (Math.Abs(dv2.Transform.Y - dv0.Transform.Y) < float.Epsilon) return;
+    private float FindArea(Vector4 a, Vector4 b, Vector4 c)
+    {
+        return (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+    }
 
-        if (Math.Abs(dv1.Transform.Y - dv0.Transform.Y) < float.Epsilon)
+    private void RasterizeTriangle(Vector4 v0, Vector4 v1, Vector4 v2, int triangleId)
+    {
+        if (v1.Y < v0.Y) (v0, v1) = (v1, v0);
+        if (v2.Y < v0.Y) (v0, v2) = (v2, v0);
+        if (v2.Y < v1.Y) (v1, v2) = (v2, v1);
+
+        if (Math.Abs(v2.Y - v0.Y) < float.Epsilon) return;
+
+        if (Math.Abs(v1.Y - v0.Y) < float.Epsilon)
         {
-            FillTriangleWithFlatTop(dv0, dv1, dv2);
+            FillTriangleWithFlatTop(v0, v1, v2, triangleId);
             return;
         }
 
-        if (Math.Abs(dv2.Transform.Y - dv1.Transform.Y) < float.Epsilon)
+        if (Math.Abs(v2.Y - v1.Y) < float.Epsilon)
         {
-            FillTriangleWithFlatBottom(dv0, dv1, dv2);
+            FillTriangleWithFlatBottom(v0, v1, v2, triangleId);
             return;
         }
 
-        float t = (dv1.Transform.Y - dv0.Transform.Y) / (dv2.Transform.Y - dv0.Transform.Y);
-        DrawerVertex dv3 = DrawerVertex.Lerp(dv0, dv2, t);
+        float t = (v1.Y - v0.Y) / (v2.Y - v0.Y);
+        var v3 = Vector4.Lerp(v0, v2, t);
 
-        FillTriangleWithFlatBottom(dv0, dv1, dv3);
-        FillTriangleWithFlatTop(dv1, dv3, dv2);
+        FillTriangleWithFlatBottom(v0, v1, v3, triangleId);
+        FillTriangleWithFlatTop(v1, v3, v2, triangleId);
     }
 
-    private void FillTriangleWithFlatBottom(DrawerVertex dv0, DrawerVertex dv1, DrawerVertex dv2)
+    private void FillTriangleWithFlatBottom(Vector4 v0, Vector4 v1, Vector4 v2, int triangleId)
     {
-        int iStartY = (int)Math.Max(0, Math.Ceiling(dv0.Transform.Y));
-        int iFinishY = (int)Math.Min(_height - 1, Math.Floor(dv1.Transform.Y));
-        float totalHeight = (dv1.Transform.Y - dv0.Transform.Y);
-        float startY = dv0.Transform.Y;
+        int iStartY = (int)Math.Max(0, Math.Ceiling(v0.Y));
+        int iFinishY = (int)Math.Min(_height - 1, Math.Floor(v1.Y));
+        float totalHeight = v1.Y - v0.Y;
+        float startY = v0.Y;
 
         for (int y = iStartY; y <= iFinishY; y++)
         {
             float t = (y - startY) / totalHeight;
-            DrawerVertex left = DrawerVertex.Lerp(dv0, dv1, t);
-            DrawerVertex right = DrawerVertex.Lerp(dv0, dv2, t);
+            var left = Vector4.Lerp(v0, v1, t);
+            var right = Vector4.Lerp(v0, v2, t);
 
-            if (left.Transform.X > right.Transform.X)
+            if (left.X > right.X)
             {
                 (left, right) = (right, left);
             }
 
-            DrawHorizontalLine(left, right, y);
+            DrawHorizontalLine(left, right, y, triangleId);
         }
     }
 
-    private void FillTriangleWithFlatTop(DrawerVertex dv0, DrawerVertex dv1, DrawerVertex dv2)
+    private void FillTriangleWithFlatTop(Vector4 v0, Vector4 v1, Vector4 v2, int triangleId)
     {
-        int iStartY = (int)Math.Max(0, Math.Ceiling(dv0.Transform.Y));
-        int iFinishY = (int)Math.Min(_height - 1, Math.Floor(dv2.Transform.Y));
-        float totalHeight = (dv2.Transform.Y - dv0.Transform.Y);
-        float startY = dv0.Transform.Y;
+        int iStartY = (int)Math.Max(0, Math.Ceiling(v0.Y));
+        int iFinishY = (int)Math.Min(_height - 1, Math.Floor(v2.Y));
+        float totalHeight = (v2.Y - v0.Y);
+        float startY = v0.Y;
 
         for (int y = iStartY; y <= iFinishY; y++)
         {
-            float t = (y - startY) / totalHeight;
-            DrawerVertex left = DrawerVertex.Lerp(dv0, dv2, t);
-            DrawerVertex right = DrawerVertex.Lerp(dv1, dv2, t);
+            var t = (y - startY) / totalHeight;
+            var left = Vector4.Lerp(v0, v2, t);
+            var right = Vector4.Lerp(v1, v2, t);
 
-            if (left.Transform.X > right.Transform.X)
+            if (left.X > right.X)
             {
                 (left, right) = (right, left);
             }
 
-            DrawHorizontalLine(left, right, y);
+            DrawHorizontalLine(left, right, y, triangleId);
         }
     }
 
-    private void DrawHorizontalLine(DrawerVertex dvLeft, DrawerVertex dvRight, int y)
+    private void DrawHorizontalLine(Vector4 vLeft, Vector4 vRight, int y, int triangleId)
     {
-        int iLeftX = (int)Math.Ceiling(dvLeft.Transform.X);
-        int iRightX = (int)Math.Floor(dvRight.Transform.X);
+        int iLeftX = (int)Math.Ceiling(vLeft.X);
+        int iRightX = (int)Math.Floor(vRight.X);
 
         if (iLeftX >= _width || iRightX < 0)
             return;
@@ -182,13 +207,12 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         int clampedXLeft = (int)Math.Max(iLeftX, 0.0f);
         int clampedXRight = (int)Math.Min(iRightX, _width - 1.0f);
 
-        float totalWidth = dvRight.Transform.X - dvLeft.Transform.X;
-        float leftX =  dvLeft.Transform.X;
-        float totalZWidth = dvRight.Transform.Z - dvLeft.Transform.Z;
-        float leftZ = dvLeft.Transform.Z;
+        float totalWidth = vRight.X - vLeft.X;
+        float leftX =  vLeft.X;
+        float totalZWidth = vRight.Z - vLeft.Z;
+        float leftZ = vLeft.Z;
 
         int bufferIndex = y * _width + clampedXLeft;
-        int* row = _buffer + y * _width;
 
         for (int x = clampedXLeft; x <= clampedXRight; x++)
         {
@@ -199,14 +223,7 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
             if (z < _zBuffer[bufferIndex])
             {
                 _zBuffer[bufferIndex] = z;
-
-                float currentInvW = dvLeft.Transform.W + t * (dvRight.Transform.W - dvLeft.Transform.W);
-
-                Vector3 currentWorld = Vector3.Lerp(dvLeft.World, dvRight.World, t) / currentInvW;
-                Vector3 currentNormal = Vector3.Lerp(dvLeft.Normal, dvRight.Normal, t) / currentInvW;
-                Vector3 currentTexel = Vector3.Lerp(dvLeft.Texel, dvRight.Texel, t) / currentInvW;
-
-                row[x] = GetPhongColor(currentWorld, currentNormal, currentTexel);
+                _triangleIdBuffer[bufferIndex] = triangleId;
             }
 
             bufferIndex++;

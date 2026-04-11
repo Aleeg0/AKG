@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Lab5.model;
 
-public class ObjModel
+public class Model
 {
     private Vector3 _translation = Vector3.Zero;
     private Vector3 _rotation = Vector3.Zero;
@@ -11,7 +11,6 @@ public class ObjModel
     private Matrix4x4 _scaleMatrix = Matrix4x4.Identity;
     private Matrix4x4 _translationMatrix = Matrix4x4.Identity;
     private Matrix4x4 _rotationMatrix = Matrix4x4.Identity;
-    public Matrix4x4 RotationMatrix => _rotationMatrix;
 
     public Vector4[] GeometricVtxs { get; }
     public Vector3[] WorldVtxs { get; }
@@ -22,11 +21,10 @@ public class ObjModel
     public Vector3[] NormalVtxs { get; }
     public Vector3[] WorldNormalVtxs { get; set; }
 
-    // TODO а нужны ли нам обычные полигоны?
-    public Face[] Faces { get; init; }
     public FaceTrg[] FaceTrgs { get; init; }
 
     public Matrix4x4 ModelMatrix { get; private set; } = Matrix4x4.Identity;
+    public Matrix4x4 RotationMatrix => _rotationMatrix;
 
     public Texture? DiffuseMap { get; set; } = null;
     public Texture? NormalMap { get; set; } = null;
@@ -74,7 +72,7 @@ public class ObjModel
     public Vector3 Min { get; private set; }
     public Vector3 Max { get; private set; }
 
-    public ObjModel(
+    public Model(
         Vector4[] geometricVtxs,
         Vector3[] textureVtxs,
         Vector3[] normalVtxs,
@@ -84,12 +82,11 @@ public class ObjModel
         GeometricVtxs = geometricVtxs;
         TextureVtxs = textureVtxs;
         NormalVtxs = normalVtxs;
-        Faces = faces;
-        
+
         TransformVtxs = new Vector4[geometricVtxs.Length];
         WorldVtxs = new Vector3[geometricVtxs.Length];
         WorldNormalVtxs = new Vector3[normalVtxs.Length];
-        FaceTrgs = Triangulate();
+        FaceTrgs = Triangulate(faces);
     }
 
     public void SetTransform(Vector3 translation, Vector3 rotation, Vector3 scale)
@@ -133,14 +130,14 @@ public class ObjModel
         });
     }
 
-    private FaceTrg[] Triangulate()
+    private FaceTrg[] Triangulate(Face[] faces)
     {
-        int totalTriangles = Faces.Sum(face => face.FaceVtxs.Count - 2);
+        int totalTriangles = faces.Sum(face => face.FaceVtxs.Count - 2);
 
         FaceTrg[] faceTrgs = new FaceTrg[totalTriangles];
 
         int faceTrgIndex = 0;
-        foreach (var face in Faces)
+        foreach (var face in faces)
         {
             var faceVtxs = face.FaceVtxs;
             if (faceVtxs.Count < 3) continue;

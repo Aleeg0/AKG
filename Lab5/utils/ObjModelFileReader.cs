@@ -10,7 +10,7 @@ public class ObjModelFileReader
 {
     private static readonly CultureInfo Culture = CultureInfo.InvariantCulture;
 
-    public static ObjModel ReadModel(string filePath)
+    public static Model ReadModel(string filePath)
     {
         var geometricVtxs = new List<Vector4>();
         var textureVtxs = new List<Vector3>();
@@ -50,7 +50,7 @@ public class ObjModelFileReader
             }
         }
 
-        return new ObjModel(
+        return new Model(
             geometricVtxs.ToArray(),
             textureVtxs.ToArray(),
             normalVtxs.ToArray(),
@@ -132,7 +132,7 @@ public class ObjModelFileReader
         return index > 0 ?  index - 1 : totalCount + index;
     }
 
-    public static void LoadTextures(string filePath, ObjModel objModel)
+    public static void LoadTextures(string filePath, Model model)
     {
         var mtlDirectory = Path.GetDirectoryName(filePath)!;
         foreach (var line in File.ReadLines(filePath))
@@ -152,13 +152,13 @@ public class ObjModelFileReader
             switch (type)
             {
                 case "map_Kd":
-                    objModel.DiffuseMap = GetTexture(Path.Combine(mtlDirectory, path));
+                    model.DiffuseMap = GetTexture(Path.Combine(mtlDirectory, path));
                     break;
                 case "norm":
-                    objModel.NormalMap = GetTexture(Path.Combine(mtlDirectory, path));
+                    model.NormalMap = GetTexture(Path.Combine(mtlDirectory, path));
                     break;
                 case "map_specular":
-                    objModel.SpecularMap = GetTexture(Path.Combine(mtlDirectory, path));
+                    model.SpecularMap = GetTexture(Path.Combine(mtlDirectory, path));
                     break;
             }
         }
