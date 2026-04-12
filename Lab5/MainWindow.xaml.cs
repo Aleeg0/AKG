@@ -166,11 +166,9 @@ public partial class MainWindow : Window
         if (_wb == null || _model == null) return;
 
         long startTicks = Stopwatch.GetTimestamp();
-
-        _modelDrawer.FillBitmap(_wb, _bgColor);
-
         _processor.TransformModel(_model, _camera, _wb.PixelWidth, _wb.PixelHeight);
 
+        _modelDrawer.FillBitmap(_wb, _bgColor);
         _modelDrawer.DrawModel(_wb, _model);
 
         long endTicks = Stopwatch.GetTimestamp();

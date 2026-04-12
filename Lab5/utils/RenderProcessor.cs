@@ -8,10 +8,14 @@ public class RenderProcessor
     public void TransformModel(Model model, Camera cam, float width, float height)
     {
         var viewMatrix = CreateViewMatrix(cam.Eye, cam.Target, cam.Up);
+        var viewMatrixT = Matrix4x4.CreateLookAt(cam.Eye, cam.Target, cam.Up);
         var projMatrix = CreateProjectionMatrix(cam.Fov, cam.AspectRatio, cam.ZNear, cam.ZFar);
-        var viewportMatrix = CreateViewportMatrix(width, height, 0, 0);
+        var projMatrixT = Matrix4x4.CreatePerspectiveFieldOfView(cam.Fov, cam.AspectRatio, cam.ZNear, cam.ZFar);
+        var viewportMatrix = Matrix4x4Ex.CreateViewport(width, height);
 
-        var finalMatrix = model.ModelMatrix * viewMatrix * projMatrix * viewportMatrix;
+        //Console.WriteLine(viewMatrix.ToString(), projMatrix.ToString());
+
+        var finalMatrix = model.ModelMatrix * viewMatrixT * projMatrixT * viewportMatrix;
 
         int count = model.GeometricVtxs.Length;
         Parallel.For(0, count, i =>
@@ -55,21 +59,6 @@ public class RenderProcessor
             0, m22, 0, 0,
             0, 0, m33, m34,
             0, 0, -1, 0
-        ));
-    }
-
-    private static Matrix4x4 CreateViewportMatrix(float width, float height, float xMin, float yMin)
-    {
-        float m11 = width / 2;
-        float m22 = -height / 2;
-        float m14 = xMin + width / 2;
-        float m24 = yMin + height / 2;
-
-        return Matrix4x4.Transpose(new Matrix4x4(
-            m11, 0, 0, m14,
-            0, m22, 0, m24,
-            0, 0, 1, 0,
-            0, 0, 0, 1
         ));
     }
 }

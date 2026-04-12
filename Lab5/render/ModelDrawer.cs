@@ -14,6 +14,7 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
     private float[] _zBuffer = [];
     private int[] _triangleIdBuffer = [];
     private Model _model;
+    private ShadowRenderer _shadowRenderer = new (2048, 2048);
 
     public void DrawModel(WriteableBitmap wb, Model model)
     {
@@ -30,6 +31,8 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         }
         Array.Fill(_zBuffer, float.MaxValue);
         Array.Fill(_triangleIdBuffer, -1);
+
+        _shadowRenderer.Render(model, sceneSettings.LightPosition);
 
         wb.Lock();
 
@@ -134,22 +137,16 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         if (Math.Abs(v2.Y - v0.Y) < float.Epsilon) return;
 
         if (Math.Abs(v1.Y - v0.Y) < float.Epsilon)
-        {
             FillTriangleWithFlatTop(v0, v1, v2, triangleId);
-            return;
-        }
-
-        if (Math.Abs(v2.Y - v1.Y) < float.Epsilon)
-        {
+        else if (Math.Abs(v2.Y - v1.Y) < float.Epsilon)
             FillTriangleWithFlatBottom(v0, v1, v2, triangleId);
-            return;
+        else
+        {
+            float t = (v1.Y - v0.Y) / (v2.Y - v0.Y);
+            var v3 = Vector4.Lerp(v0, v2, t);
+            FillTriangleWithFlatBottom(v0, v1, v3, triangleId);
+            FillTriangleWithFlatTop(v1, v3, v2, triangleId);
         }
-
-        float t = (v1.Y - v0.Y) / (v2.Y - v0.Y);
-        var v3 = Vector4.Lerp(v0, v2, t);
-
-        FillTriangleWithFlatBottom(v0, v1, v3, triangleId);
-        FillTriangleWithFlatTop(v1, v3, v2, triangleId);
     }
 
     private void FillTriangleWithFlatBottom(Vector4 v0, Vector4 v1, Vector4 v2, int triangleId)
@@ -157,18 +154,14 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         int iStartY = (int)Math.Max(0, Math.Ceiling(v0.Y));
         int iFinishY = (int)Math.Min(_height - 1, Math.Floor(v1.Y));
         float totalHeight = v1.Y - v0.Y;
-        float startY = v0.Y;
 
         for (int y = iStartY; y <= iFinishY; y++)
         {
-            float t = (y - startY) / totalHeight;
+            float t = (y - v0.Y) / totalHeight;
             var left = Vector4.Lerp(v0, v1, t);
             var right = Vector4.Lerp(v0, v2, t);
 
-            if (left.X > right.X)
-            {
-                (left, right) = (right, left);
-            }
+            if (left.X > right.X) (left, right) = (right, left);
 
             DrawHorizontalLine(left, right, y, triangleId);
         }
@@ -178,19 +171,15 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
     {
         int iStartY = (int)Math.Max(0, Math.Ceiling(v0.Y));
         int iFinishY = (int)Math.Min(_height - 1, Math.Floor(v2.Y));
-        float totalHeight = (v2.Y - v0.Y);
-        float startY = v0.Y;
+        float totalHeight = v2.Y - v0.Y;
 
         for (int y = iStartY; y <= iFinishY; y++)
         {
-            var t = (y - startY) / totalHeight;
+            var t = (y - v0.Y) / totalHeight;
             var left = Vector4.Lerp(v0, v2, t);
             var right = Vector4.Lerp(v1, v2, t);
 
-            if (left.X > right.X)
-            {
-                (left, right) = (right, left);
-            }
+            if (left.X > right.X) (left, right) = (right, left);
 
             DrawHorizontalLine(left, right, y, triangleId);
         }
@@ -208,17 +197,14 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         int clampedXRight = (int)Math.Min(iRightX, _width - 1.0f);
 
         float totalWidth = vRight.X - vLeft.X;
-        float leftX =  vLeft.X;
         float totalZWidth = vRight.Z - vLeft.Z;
-        float leftZ = vLeft.Z;
 
         int bufferIndex = y * _width + clampedXLeft;
 
         for (int x = clampedXLeft; x <= clampedXRight; x++)
         {
-            float t = totalWidth > float.Epsilon ? (x - leftX) / totalWidth : 0.0f;
-
-            float z = leftZ + t * totalZWidth;
+            float t = totalWidth > float.Epsilon ? (x - vLeft.X) / totalWidth : 0.0f;
+            float z = vLeft.Z + t * totalZWidth;
 
             if (z < _zBuffer[bufferIndex])
             {
@@ -226,7 +212,7 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
                 _triangleIdBuffer[bufferIndex] = triangleId;
             }
 
-            bufferIndex++;
+            ++bufferIndex;
         }
     }
 
@@ -264,13 +250,14 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         Vector3 normalizeView = Vector3.Normalize(camera.Eye - world);
         Vector3 normalizeLight = Vector3.Normalize(sceneSettings.LightPosition - world);
 
+        float shadowFactor = CalculateShadowFactor(world);
         float ambientLight = sceneSettings.AmbientIntensity;
         float diff = Math.Max(0, Vector3.Dot(normalizeNormal, normalizeLight));
-        float diffuseLight = sceneSettings.DiffuseIntensity * diff;
+        float diffuseLight = sceneSettings.DiffuseIntensity * diff * shadowFactor;
 
         float reflectionLight = 0.0f;
 
-        if (diff > float.Epsilon)
+        if (diff > float.Epsilon && shadowFactor > 0.0f)
         {
             Vector3 reflection = 2.0f * Math.Max(0f, Vector3.Dot(normalizeLight, normalizeNormal)) * normalizeNormal - normalizeLight;
             float specAngle = Math.Max(0, Vector3.Dot(Vector3.Normalize(reflection), normalizeView));
@@ -284,6 +271,26 @@ public unsafe class ModelDrawer(Camera camera, SceneSettings sceneSettings)
         int b = (int)(Math.Clamp(baseColor.Z * intensity + reflectionLight, 0f, 1f) * 255f);
 
         return (255 << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private float CalculateShadowFactor(Vector3 world)
+    {
+        Vector4 posInLightSpace = Vector4.Transform(new Vector4(world, 1f), _shadowRenderer.LightSpaceMatrix);
+        posInLightSpace /= posInLightSpace.W;
+
+        float shadowFactor = 1.0f;
+        int sx = (int)posInLightSpace.X;
+        int sy = (int)posInLightSpace.Y;
+
+        if (sx >= 0 && sx < _shadowRenderer.Width && sy >= 0 && sy < _shadowRenderer.Height) {
+            float closestDepth = _shadowRenderer.ShadowBuffer[sy * _shadowRenderer.Width + sx];
+            float currentDepth = posInLightSpace.Z;
+
+            float bias = 0.005f;
+            if (currentDepth > closestDepth + bias) shadowFactor = 0.0f;
+        }
+
+        return shadowFactor;
     }
 
     public void FillBitmap(WriteableBitmap wb, Color color)
