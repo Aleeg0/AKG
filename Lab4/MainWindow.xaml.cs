@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
@@ -164,11 +165,23 @@ public partial class MainWindow : Window
     {
         if (_wb == null || _model == null) return;
 
+        long startTicks = Stopwatch.GetTimestamp();
+
         _modelDrawer.FillBitmap(_wb, _bgColor);
 
         _processor.TransformModel(_model, _camera, _wb.PixelWidth, _wb.PixelHeight);
 
         _modelDrawer.DrawModel(_wb, _model);
+
+        long endTicks = Stopwatch.GetTimestamp();
+        double elapsedSeconds = (double)(endTicks - startTicks) / Stopwatch.Frequency;
+
+        if (elapsedSeconds > 0)
+        {
+            int fps = (int)Math.Round(1.0 / elapsedSeconds);
+            double ms = elapsedSeconds * 1000.0;
+            FpsText.Text = $"FPS: {fps} ({ms:F1} ms)";
+        }
     }
 
     private void LoadFile_OnClick(object sender, RoutedEventArgs e)

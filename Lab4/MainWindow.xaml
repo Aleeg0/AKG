@@ -39,14 +39,25 @@
         </Border>
 
         <Border Grid.Row="1" Background="White">
-            <StackPanel Focusable="True" Grid.Row="1" Name="ImagePanel" Background="White" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-            >
+            <Grid Focusable="True" Name="ImagePanel" Background="White">
                 <Image x:Name="ImgDisplay"
                        Stretch="Fill"
                        RenderOptions.BitmapScalingMode="NearestNeighbor"
                        RenderOptions.EdgeMode="Aliased"
                        SnapsToDevicePixels="True" />
-            </StackPanel>
+
+                <!-- Счетчик FPS -->
+                <TextBlock x:Name="FpsText"
+                           Text="FPS: 0"
+                           Foreground="LimeGreen"
+                           Background="#99000000"
+                           FontWeight="Bold"
+                           Padding="5"
+                           Margin="10"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Top"
+                           IsHitTestVisible="False" />
+            </Grid>
         </Border>
     </Grid>
 </Window>
